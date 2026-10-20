@@ -1,155 +1,82 @@
-# NutriHFr — Consommations alimentaires et apports nutritionnels des adultes en France
+# NutriHFr — Apports nutritionnels des adultes en France (INCA 3)
 
-Projet de Data Science de bout en bout sur les enquêtes **INCA 3** (Anses, 2014-2015) et **INCA 2** (2006-2007) :
-de la question scientifique au dashboard, avec un pipeline Python reproductible, une base SQL, des contrôles qualité et des tests automatisés.
+Projet de Data Science (cours) : de la question scientifique aux résultats, à partir de l'étude **INCA 3** de l'Anses (2014-2015).
 
----
+## Contexte et problématique
 
-## 1. Contexte
+> Comment se caractérisent les apports nutritionnels des adultes en France, comment varient-ils selon l'âge et le sexe, et quels aliments y contribuent le plus ?
 
-Les études INCA de l'Anses décrivent ce que mangent les personnes vivant en France métropolitaine. Croisées avec des tables de composition nutritionnelle des aliments, elles permettent d'estimer les apports en énergie et en nutriments de la population.
+Questions traitées : Q1 apport énergétique · Q2 différences hommes/femmes · Q3 effet de l'âge · Q4 densité nutritionnelle · Q5 aliments contributeurs (protéines, calcium, fer, fibres, vitamine C) · Q6 variabilité entre individus.
 
-## 2. Problématique
+## Données
 
-> **Comment se caractérisent les consommations alimentaires et les apports nutritionnels des adultes en France, comment varient-ils selon l'âge et le sexe, et quels aliments y contribuent le plus ?**
+- **INCA 3** (Anses) : [data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-de-consommations-et-habitudes-alimentaires-de-letude-inca-3)
+- Population : **2 121 adultes de 18-79 ans** ayant réalisé 2 ou 3 rappels de 24 h, pondérés pour représenter environ 45 millions d'adultes.
+- Fiche détaillée : [`docs/fiche_donnees.md`](docs/fiche_donnees.md) · variables : [`docs/dictionnaire_donnees.md`](docs/dictionnaire_donnees.md)
 
-| | Question | Notebook |
-|---|---|---|
-| Q1 | Distribution de l'apport énergétique journalier | 04 |
-| Q2 | Différences d'apports entre hommes et femmes | 04 |
-| Q3 | Évolution des apports avec l'âge | 04 |
-| Q4 | Densité nutritionnelle (pour 1 000 kcal) | 04 |
-| Q5 | Aliments contributeurs (protéines, calcium, fer, fibres, vitamine C) | 04 |
-| Q6 | Variabilité interindividuelle (ex. femmes 25-44 ans) | 04 |
-| Bonus | Profils alimentaires, diversité, INCA 2 vs INCA 3, mapping INCA ↔ Ciqual | 06 |
+## Méthode
 
-Périmètre : **adultes de 18 à 79 ans**.
+1. **Chargement** des 3 fichiers INCA 3 et sélection des adultes Pop3 (`ChargeurINCA3`).
+2. **Contrôle qualité** sur 8 dimensions (`ControleQualite`) → [`docs/rapport_qualite.md`](docs/rapport_qualite.md).
+3. **Calcul des apports** (`CalculApports`), méthode de l'Anses :
+   apport journalier = Σ (`qte_conso_pond` / 100 × composition pour 100 g) / nombre de jours.
+   **Validation** : nos apports sont identiques à ceux publiés par l'Anses.
+4. **Base SQLite** (modèle relationnel dans `sql/schema.sql`).
+5. **Statistiques pondérées** : moyennes, IC 95 %, percentiles, régression ; contributions par « ratio des moyennes » ; sous-déclaration par le critère de Goldberg.
 
-## 3. Sources de données
+## Principaux résultats
 
-| Source | Rôle | Lien |
-|---|---|---|
-| INCA 3 (Anses, 2014-2015) | source principale : individus, consommations, composition, apports | [data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-de-consommations-et-habitudes-alimentaires-de-letude-inca-3) |
-| INCA 2 (2006-2007) | comparaison agrégée (bonus), jamais fusionnée avec INCA 3 | [data.gouv.fr](https://www.data.gouv.fr/datasets/donnees-de-consommations-et-habitudes-alimentaires-de-letude-inca-2-3) |
-| Ciqual (Anses) | contrôle Atwater, mapping (bonus) | [ciqual.anses.fr](https://ciqual.anses.fr) |
-
-Fiches d'identification détaillées : [`docs/fiches_identification.md`](docs/fiches_identification.md).
-INCA 1 est écarté (méthode et nomenclature incompatibles) ; INCA 2 et INCA 3 sont analysés **séparément** car leurs méthodes de recueil diffèrent (carnet 7 jours vs 3 rappels de 24 h).
-
-## 4. Méthodologie
-
-```
-data/raw (CSV INCA)
-   │  Inca3Loader       lecture robuste, renommage canonique, filtre 18-79 ans
-   ▼
-QualityChecker          8 dimensions de qualité  ──► docs/data_quality_report.md
-   ▼
-DataCleaner             doublons, quantités < 0 ou implausibles, aliments inconnus ──► table exclusions
-   ▼
-IntakeCalculator        quantité/100 × teneur → somme par jour → moyenne des jours par individu
-   ▼
-flag_underreporters     critère de Goldberg (Schofield + seuil de Black 2000)
-   ▼
-NutriDatabase (SQLite)  modèle relationnel avec clés et contraintes ──► data/processed/nutrihfr.sqlite
-   ▼
-stats.py                moyennes / percentiles pondérés, IC 95 %, régression pondérée
-   ▼
-notebooks 04-06, dashboard Streamlit
-```
-
-Points méthodologiques :
-- **Pondérations d'enquête** utilisées pour toutes les moyennes et tous les percentiles.
-- **Sous-déclaration** : critère de Goldberg, analyses avec et sans sous-déclarants (notebook 05).
-- **Apport d'un jour vs apport habituel** : décomposition de la variance intra / inter-individuelle (Q6).
-- **Contributions** : ratio des moyennes pondéré (comparé à la moyenne des ratios).
-- **Validation** : les apports recalculés sont comparés aux apports fournis par l'Anses.
-
-## 5. Résultats
-
-*À compléter avec les vraies données (les figures se trouvent dans `outputs/figures/`, les tableaux dans `outputs/tables/`).*
-
-| Question | Résultat principal |
+| | Résultat (moyennes pondérées) |
 |---|---|
-| Q1 | apport énergétique moyen : … kcal/j (IC 95 % …) |
-| Q2 | … |
-| Q3 | … |
-| Q4 | … |
-| Q5 | … |
-| Q6 | … |
+| Q1 | Apport énergétique moyen : **2 102 kcal/j** (IC 95 % : 2 048-2 157) ; 2 438 kcal/j chez les hommes, 1 787 chez les femmes |
+| Q2 | Les femmes ont des apports plus faibles que les hommes pour tous les nutriments étudiés : de −11 % (vitamine C) à −27 % (énergie, fer), et −70 % pour l'alcool |
+| Q3 | L'apport énergétique diminue avec l'âge chez les deux sexes |
+| Q4 | Pour 1 000 kcal, les femmes ont une alimentation plus riche en vitamine C (+21 %), calcium (+11 %) et fibres (+11 %) |
+| Q5 | Calcium : fromages, yaourts et laits ; vitamine C : fruits, jus et légumes ; fibres : pain raffiné, légumes et fruits |
+| Q6 | Forte dispersion entre individus, en partie gonflée par le faible nombre de jours observés |
+| Robustesse | Exclure les sous-déclarants augmente les apports de 8 à 21 % ; la pondération change les moyennes de moins de 6 % |
 
-## 6. Limites
+## Limites
 
-- Recueil déclaratif sur 3 jours : sous-déclaration et apports d'un jour ≠ apports habituels.
-- IC calculés sans les strates / grappes du plan de sondage (légèrement trop étroits).
-- Composition figée à la version de table utilisée par l'Anses pour INCA 3 ; Ciqual plus récent non directement substituable sans mapping.
-- Comparaison INCA 2 / INCA 3 confondue avec les changements de méthode.
-- Critère de Goldberg dépendant d'une hypothèse de niveau d'activité physique.
+- 2-3 jours par personne : moyennes fiables, percentiles extrêmes moins (pas de modélisation de l'apport habituel).
+- Données déclaratives : sous-déclaration probable.
+- Âge connu seulement en classes ; intervalles de confiance calculés sans les strates du plan de sondage (un peu trop étroits).
 
----
-
-## Structure du dépôt
+## Organisation du dépôt
 
 ```
 nutrihfr/
 ├── README.md
 ├── requirements.txt
-├── src/nutrihfr/          code du pipeline (classes)
-│   ├── config.py          ← SEUL fichier à adapter aux vraies données
-│   ├── loader.py          chargement INCA 3, INCA 2, Ciqual
-│   ├── quality.py         contrôle qualité et nettoyage
-│   ├── intake.py          calcul des apports, Goldberg, Atwater
-│   ├── database.py        base SQLite
-│   ├── stats.py           statistiques pondérées
-│   ├── lineage.py         traçabilité des résultats
-│   ├── pipeline.py        orchestration de bout en bout
-│   └── viz.py             style graphique
+├── data/raw/inca3/        fichiers INCA 3 + notice (non versionnés)
+├── data/processed/        résultats du pipeline + base SQLite (non versionnés)
+├── docs/                  fiche des données, dictionnaire, rapport qualité
+├── notebooks/
+│   ├── 01_donnees.ipynb            problématique, sources, population
+│   ├── 02_data_engineering.ipynb   chargement, exploration, pondérations, SQL, RGPD
+│   ├── 03_qualite.ipynb            contrôles qualité, calcul et validation des apports
+│   ├── 04_analyses.ipynb           questions Q1 à Q6, sous-déclaration, robustesse
+│   └── 05_tests.ipynb              tests du pipeline (annexe D)
+├── outputs/               figures et tableaux produits par les notebooks
+├── scripts/run_pipeline.py  relance tout le pipeline en une commande
 ├── sql/schema.sql         modèle relationnel
-├── notebooks/             01 → 06, à exécuter dans l'ordre
-├── tests/test_pipeline.py tests de l'annexe D (pytest)
-├── app/dashboard.py       dashboard Streamlit
-├── scripts/               run_pipeline.py, make_synthetic_data.py
-├── docs/                  fiches, dictionnaire, rapport qualité, plan du rapport
-├── data/                  raw / processed (non versionnés)
-└── outputs/               figures et tableaux
+└── src/nutrihfr/
+    ├── config.py          chemins, fichiers, variables, groupes d'aliments
+    ├── pipeline.py        ChargeurINCA3, ControleQualite, CalculApports, base SQLite
+    └── stats.py           statistiques pondérées, contributions, Goldberg
 ```
 
-## Installation et reproduction
+## Reproduire
 
 ```bash
-git clone <url-du-repo> && cd nutrihfr
-python -m venv .venv && source .venv/bin/activate      # Windows : .venv\Scripts\activate
+conda create -n nutrihfr python=3.11 -y
+conda activate nutrihfr
 pip install -r requirements.txt
-
-python scripts/make_synthetic_data.py   # (optionnel) données de démonstration
-python scripts/run_pipeline.py          # pipeline complet
-pytest -v                               # tests automatisés
-jupyter lab notebooks/                  # analyses
-streamlit run app/dashboard.py          # dashboard
 ```
 
-### Passer aux vraies données INCA
-
-1. Télécharger depuis data.gouv.fr : `description-indiv.csv`, `conso-compo-alim.csv`, `apports-nut-alim.csv`, `nomenclature.csv` (+ la notice PDF) → `data/raw/inca3/`. Idem pour INCA 2 → `data/raw/inca2/` et l'export Ciqual (CSV ou XLSX) → `data/raw/ciqual/`.
-2. Dans `src/nutrihfr/config.py`, remplacer la valeur par défaut `"synthetic"` par `"real"` dans la ligne `MODE = ...`.
-3. Exécuter le notebook **01** : la cellule « vérification » liste les colonnes à corriger dans `config.py` (lignes `# A VERIFIER`).
-4. Exécuter le notebook **02** : il indique si la composition est « pour 100 g » ou « pour la portion ».
-5. Relancer `python scripts/run_pipeline.py`, `pytest`, puis les notebooks 03 à 06.
-
-## Traçabilité et reproductibilité
-
-- **Données** : empreinte SHA-256 de chaque fichier brut, versions et journal de chargement dans `data/processed/run_log.json` et dans la table SQL `sources`.
-- **Transformations** : chaque ligne écartée est conservée avec son motif (table `exclusions`).
-- **Résultats** : chaque résultat clé peut être exporté avec son lignage (`Lineage`, annexe C), incluant le commit Git.
-- **Environnement** : `requirements.txt` ; graine aléatoire fixée.
-- **Tests** : `tests/test_pipeline.py`, exécutés automatiquement par GitHub Actions à chaque push.
+1. Télécharger les fichiers INCA 3 sur data.gouv.fr dans `data/raw/inca3/` : `description-indiv.csv`, `conso-compo-alim-vf-mad-datagouv2021.csv`, `apports-nut-alim.csv`.
+2. Lancer `python scripts/run_pipeline.py`, puis les notebooks dans l'ordre (01 → 05).
 
 ## Confidentialité
 
-Les données INCA sont pseudonymisées mais restent des données personnelles de santé : les fichiers bruts ne sont pas versionnés, seuls des résultats agrégés sont publiés, le dashboard masque les groupes de moins de 30 personnes.
-
-## Références
-
-- Anses (2017). *Étude individuelle nationale des consommations alimentaires 3 (INCA 3)*. Rapport d'expertise collective.
-- Anses. Table de composition nutritionnelle des aliments Ciqual.
-- Black A.E. (2000). Critical evaluation of energy intake using the Goldberg cut-off for energy intake:basal metabolic rate. *Int J Obes*, 24, 1119-1130.
-- Schofield W.N. (1985). Predicting basal metabolic rate, new standards and review of previous work. *Hum Nutr Clin Nutr*, 39C, 5-41.
+Données pseudonymisées mais personnelles (santé) : elles ne sont pas publiées sur GitHub, et seuls des résultats agrégés sont présentés.

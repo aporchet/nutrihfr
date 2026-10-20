@@ -1,0 +1,18 @@
+dimension,controle,resultat,statut
+Complétude,individus : poids manquant,5,A VERIFIER
+Complétude,individus : taille manquant,0,OK
+Complétude,individus : ponderation manquant,0,OK
+Complétude,lignes sans composition nutritionnelle,10,A VERIFIER
+Unicité,individus en double (NOIND),0,OK
+Unicité,lignes de consommation en double (NUM_LIGNE),0,OK
+Validité,quantités nulles ou négatives,0,OK
+Validité,valeurs de composition négatives,0,OK
+Validité,sexe ou classe d'âge non codé,0,OK
+Cohérence,nb de jours observés différent de R24_nombre,0,OK
+Cohérence,adultes sans aucune consommation,0,OK
+Intégrité référentielle,consommations d'un individu inconnu,0,OK
+Intégrité référentielle,lignes avec un groupe d'aliments inconnu,0,OK
+Exactitude,quantités > 2 kg en une prise,0,OK
+Exactitude,IMC hors [13 ; 70],0,OK
+Homogénéité,% lignes où énergie Atwater ≈ énergie (écart < 10 %),96.7,OK
+Traçabilité,lignes de consommation conservées / lues,149392 / 149392,OK

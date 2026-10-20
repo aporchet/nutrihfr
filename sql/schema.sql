@@ -1,90 +1,68 @@
 -- Modèle relationnel NutriHFr (SQLite)
--- individus 1--n journees 1--n consommations n--1 aliments 1--n composition n--1 nutriments
+--
+--  individus 1──n journees 1──n consommations n──1 aliments
+--                                   │
+--                                   1──n composition n──1 nutriments
+--  individus 1──n apports n──1 nutriments
 
-PRAGMA foreign_keys = ON;
-
-DROP TABLE IF EXISTS apports_individuels;
-DROP TABLE IF EXISTS exclusions;
-DROP TABLE IF EXISTS consommations;
+DROP TABLE IF EXISTS apports;
 DROP TABLE IF EXISTS composition;
+DROP TABLE IF EXISTS consommations;
 DROP TABLE IF EXISTS journees;
-DROP TABLE IF EXISTS individus;
 DROP TABLE IF EXISTS aliments;
 DROP TABLE IF EXISTS nutriments;
-DROP TABLE IF EXISTS sources;
-
-CREATE TABLE sources (
-    enquete     TEXT NOT NULL,
-    table_src   TEXT NOT NULL,
-    fichier     TEXT NOT NULL,
-    sha256      TEXT NOT NULL,
-    n_lignes    INTEGER,
-    PRIMARY KEY (enquete, table_src)
-);
+DROP TABLE IF EXISTS individus;
 
 CREATE TABLE individus (
-    id_indiv       INTEGER PRIMARY KEY,
-    enquete        TEXT NOT NULL,
-    sexe           TEXT NOT NULL CHECK (sexe IN ('Homme', 'Femme')),
-    age            REAL CHECK (age >= 0),
-    classe_age     TEXT,
-    poids_kg       REAL,
-    taille_cm      REAL,
-    poids_enquete  REAL NOT NULL CHECK (poids_enquete > 0),
-    n_jours        INTEGER
+    id_indiv     INTEGER PRIMARY KEY,
+    sexe         TEXT NOT NULL,
+    classe_age   TEXT NOT NULL,
+    poids        REAL,
+    taille       REAL,
+    ponderation  REAL NOT NULL
 );
 
 CREATE TABLE journees (
-    id_jour   TEXT PRIMARY KEY,
-    id_indiv  INTEGER NOT NULL REFERENCES individus(id_indiv),
-    no_jour   INTEGER NOT NULL
+    id_indiv    INTEGER NOT NULL REFERENCES individus(id_indiv),
+    no_jour     INTEGER NOT NULL,
+    poids_jour  REAL,                      -- R24_pond (semaine / week-end)
+    PRIMARY KEY (id_indiv, no_jour)
 );
 
 CREATE TABLE aliments (
     code_aliment  INTEGER PRIMARY KEY,
-    libelle       TEXT,
-    groupe        TEXT
+    libelle       TEXT
 );
 
 CREATE TABLE nutriments (
     code_nutriment  TEXT PRIMARY KEY,
-    libelle         TEXT NOT NULL,
-    unite           TEXT NOT NULL
-);
-
-CREATE TABLE composition (
-    code_aliment    INTEGER NOT NULL REFERENCES aliments(code_aliment),
-    code_nutriment  TEXT    NOT NULL REFERENCES nutriments(code_nutriment),
-    valeur_100g     REAL,
-    source          TEXT,
-    PRIMARY KEY (code_aliment, code_nutriment)
+    libelle         TEXT,
+    unite           TEXT
 );
 
 CREATE TABLE consommations (
-    id_conso      INTEGER PRIMARY KEY,
-    id_jour       TEXT    NOT NULL REFERENCES journees(id_jour),
-    id_indiv      INTEGER NOT NULL REFERENCES individus(id_indiv),
-    code_aliment  INTEGER NOT NULL REFERENCES aliments(code_aliment),
-    quantite_g    REAL    NOT NULL CHECK (quantite_g >= 0)
+    id_ligne         INTEGER PRIMARY KEY,
+    id_indiv         INTEGER NOT NULL,
+    no_jour          INTEGER NOT NULL,
+    code_aliment     INTEGER NOT NULL REFERENCES aliments(code_aliment),
+    groupe           TEXT,
+    quantite_g       REAL CHECK (quantite_g >= 0),
+    quantite_pond_g  REAL,
+    FOREIGN KEY (id_indiv, no_jour) REFERENCES journees(id_indiv, no_jour)
 );
 
--- lignes écartées au nettoyage (pas de clés étrangères : on garde même les codes inconnus)
-CREATE TABLE exclusions (
-    id_conso      INTEGER,
-    id_jour       TEXT,
-    id_indiv      INTEGER,
-    code_aliment  INTEGER,
-    quantite_g    REAL,
-    motif         TEXT
+-- composition de l'aliment consommé, pour 100 g (propre à chaque ligne)
+CREATE TABLE composition (
+    id_ligne        INTEGER NOT NULL REFERENCES consommations(id_ligne),
+    code_nutriment  TEXT NOT NULL REFERENCES nutriments(code_nutriment),
+    valeur_100g     REAL,
+    PRIMARY KEY (id_ligne, code_nutriment)
 );
 
--- résultat du pipeline : apport journalier moyen par individu (format long)
-CREATE TABLE apports_individuels (
-    id_indiv        INTEGER NOT NULL REFERENCES individus(id_indiv),
-    code_nutriment  TEXT    NOT NULL REFERENCES nutriments(code_nutriment),
-    valeur          REAL,
+-- résultat du pipeline : apport journalier moyen par individu
+CREATE TABLE apports (
+    id_indiv         INTEGER NOT NULL REFERENCES individus(id_indiv),
+    code_nutriment   TEXT NOT NULL REFERENCES nutriments(code_nutriment),
+    valeur_par_jour  REAL,
     PRIMARY KEY (id_indiv, code_nutriment)
 );
-
-CREATE INDEX idx_conso_jour ON consommations(id_jour);
-CREATE INDEX idx_conso_aliment ON consommations(code_aliment);
