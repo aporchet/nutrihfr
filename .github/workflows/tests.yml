@@ -1,0 +1,19 @@
+name: tests
+
+on: [push, pull_request]
+
+env:
+  NUTRIHFR_MODE: synthetic
+
+jobs:
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pip install pandas numpy scipy matplotlib seaborn scikit-learn openpyxl pytest
+      - name: Générer les données synthétiques (les vraies données ne sont pas versionnées)
+        run: python scripts/make_synthetic_data.py
+      - run: pytest -v
