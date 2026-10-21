@@ -1,4 +1,4 @@
-# NutriHFr — Apports nutritionnels des adultes en France (INCA 3)
+# Projet étudiant NutriHFr — Apports nutritionnels des adultes en France (INCA 3)
 
 Projet de Data Science (cours) : de la question scientifique aux résultats, à partir de l'étude **INCA 3** de l'Anses (2014-2015).
 
@@ -22,7 +22,8 @@ Questions traitées : Q1 apport énergétique · Q2 différences hommes/femmes �
    apport journalier = Σ (`qte_conso_pond` / 100 × composition pour 100 g) / nombre de jours.
    **Validation** : nos apports sont identiques à ceux publiés par l'Anses.
 4. **Base SQLite** (modèle relationnel dans `sql/schema.sql`).
-5. **Statistiques pondérées** : moyennes, IC 95 %, percentiles, régression ; contributions par « ratio des moyennes » ; sous-déclaration par le critère de Goldberg.
+5. **Dashboard** Streamlit pour explorer les résultats par nutriment, sexe et classe d'âge.
+6. **Statistiques pondérées** : moyennes, IC 95 %, percentiles, régression ; contributions par « ratio des moyennes » ; sous-déclaration par le critère de Goldberg.
 
 ## Principaux résultats
 
@@ -38,7 +39,7 @@ Questions traitées : Q1 apport énergétique · Q2 différences hommes/femmes �
 
 ## Limites
 
-- 2-3 jours par personne : moyennes fiables, percentiles extrêmes moins (pas de modélisation de l'apport habituel).
+- 2-3 jours par personne : moyennes fiables, percentiles extrêmes beaucoup moins (pas de modélisation de l'apport habituel).
 - Données déclaratives : sous-déclaration probable.
 - Âge connu seulement en classes ; intervalles de confiance calculés sans les strates du plan de sondage (un peu trop étroits).
 
@@ -48,6 +49,7 @@ Questions traitées : Q1 apport énergétique · Q2 différences hommes/femmes �
 nutrihfr/
 ├── README.md
 ├── requirements.txt
+├── app/dashboard.py       dashboard Streamlit (exploration interactive des résultats)
 ├── data/raw/inca3/        fichiers INCA 3 + notice (non versionnés)
 ├── data/processed/        résultats du pipeline + base SQLite (non versionnés)
 ├── docs/                  fiche des données, dictionnaire, rapport qualité
@@ -76,6 +78,7 @@ pip install -r requirements.txt
 
 1. Télécharger les fichiers INCA 3 sur data.gouv.fr dans `data/raw/inca3/` : `description-indiv.csv`, `conso-compo-alim-vf-mad-datagouv2021.csv`, `apports-nut-alim.csv`.
 2. Lancer `python scripts/run_pipeline.py`, puis les notebooks dans l'ordre (01 → 05).
+3. Dashboard : `streamlit run app/dashboard.py`.
 
 ## Confidentialité
 
